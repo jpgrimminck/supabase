@@ -9,25 +9,27 @@
 <body>
   <button id="toggleBtn">Cambiar color</button>
   <script>
-    const supabaseUrl = 'https://Supabase.supabase.co'
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmcWV4aHRlaG9tZWxxdGV2cGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1OTA0MzQsImV4cCI6MjA2OTE2NjQzNH0.x7-lBYEOq16DDLF7TOZjuh6g3ZfRrAMc6SqG8MSPmQE'
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey)
+    // Desestructura correctamente
+    const { createClient } = window.supabase;
+    const supabaseClient = createClient(
+      'https://Supabase.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmcWV4aHRlaG9tZWxxdGV2cGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1OTA0MzQsImV4cCI6MjA2OTE2NjQzNH0.x7-lBYEOq16DDLF7TOZjuh6g3ZfRrAMc6SqG8MSPmQE'
+    );
 
     document.getElementById('toggleBtn').addEventListener('click', async () => {
-      // Lee color actual
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('colors')
         .select('color')
         .eq('id', 1)
-        .single()
+        .single();
       if (!error) {
-        const newColor = data.color === 'green' ? 'red' : 'green'
-        await supabase
+        const newColor = data.color === 'green' ? 'red' : 'green';
+        await supabaseClient
           .from('colors')
           .update({ color: newColor })
-          .eq('id', 1)
+          .eq('id', 1);
       }
-    })
+    });
   </script>
 </body>
 </html>

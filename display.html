@@ -11,29 +11,32 @@
        style="width:200px; height:200px; background-color:green;">
   </div>
   <script>
-    const supabaseUrl = 'https://Supabase.supabase.co'
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmcWV4aHRlaG9tZWxxdGV2cGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1OTA0MzQsImV4cCI6MjA2OTE2NjQzNH0.x7-lBYEOq16DDLF7TOZjuh6g3ZfRrAMc6SqG8MSPmQE'
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey)
+    // Desestructura para evitar TDZ
+    const { createClient } = window.supabase;
+    const supabaseClient = createClient(
+      'https://Supabase.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmcWV4aHRlaG9tZWxxdGV2cGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1OTA0MzQsImV4cCI6MjA2OTE2NjQzNH0.x7-lBYEOq16DDLF7TOZjuh6g3ZfRrAMc6SqG8MSPmQE'
+    );
 
     // Color inicial
-    supabase
+    supabaseClient
       .from('colors')
       .select('color')
       .eq('id', 1)
       .single()
       .then(({ data }) => {
-        document.getElementById('box')
-                .style.backgroundColor = data.color
-      })
+        console.log('Fetch inicial:', data.color);
+        document.getElementById('box').style.backgroundColor = data.color;
+      });
 
     // Realtime updates
-    supabase
+    supabaseClient
       .from('colors:id=eq.1')
       .on('UPDATE', payload => {
-        document.getElementById('box')
-                .style.backgroundColor = payload.new.color
+        console.log('UPDATE payload:', payload.new.color);
+        document.getElementById('box').style.backgroundColor = payload.new.color;
       })
-      .subscribe()
+      .subscribe();
   </script>
 </body>
 </html>
