@@ -1,0 +1,33 @@
+<!-- control.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Control de Color</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+</head>
+<body>
+  <button id="toggleBtn">Cambiar color</button>
+  <script>
+    const supabaseUrl = 'https://Supabase.supabase.co'
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmcWV4aHRlaG9tZWxxdGV2cGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1OTA0MzQsImV4cCI6MjA2OTE2NjQzNH0.x7-lBYEOq16DDLF7TOZjuh6g3ZfRrAMc6SqG8MSPmQE'
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey)
+
+    document.getElementById('toggleBtn').addEventListener('click', async () => {
+      // Lee color actual
+      const { data, error } = await supabase
+        .from('colors')
+        .select('color')
+        .eq('id', 1)
+        .single()
+      if (!error) {
+        const newColor = data.color === 'green' ? 'red' : 'green'
+        await supabase
+          .from('colors')
+          .update({ color: newColor })
+          .eq('id', 1)
+      }
+    })
+  </script>
+</body>
+</html>
