@@ -30,9 +30,18 @@
       });
 
     // Realtime updates
+    // supabaseClient
+    //   .from('colors:id=eq.1')
+    //   .on('UPDATE', payload => {
+    //     console.log('UPDATE payload:', payload.new.color);
+    //     document.getElementById('box').style.backgroundColor = payload.new.color;
+    //   })
+    //   .subscribe();
+
+    // Usar la nueva API de Realtime de Supabase v2
     supabaseClient
-      .from('colors:id=eq.1')
-      .on('UPDATE', payload => {
+      .channel('realtime-colors')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'colors', filter: 'id=eq.1' }, (payload) => {
         console.log('UPDATE payload:', payload.new.color);
         document.getElementById('box').style.backgroundColor = payload.new.color;
       })
