@@ -6,23 +6,38 @@
   <title>Control de Color</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
-    /* Botón grande y centrado */
+    /* Dos botones grandes y centrados */
     html, body { height:100%; margin:0; }
     body { display:flex; align-items:center; justify-content:center; background:#fff; }
-    #toggleBtn {
-      width:80vw;
-      height:80vh;
-      font-size:3.5rem;
+    .container {
+      display:flex;
+      gap:4vw;
+      width:100%;
+      padding:2vh;
+      box-sizing:border-box;
+      justify-content:center;
+    }
+    .btn-big {
+      width:calc(50vw - 4vw);
+      height:90vh;
+      font-size:3rem;
       border:none;
       border-radius:12px;
       cursor:pointer;
       display:block;
       box-shadow:0 6px 18px rgba(0,0,0,0.15);
     }
+    @media (max-width:800px) {
+      .container { flex-direction:column; gap:2vh; }
+      .btn-big { width:90vw; height:40vh; font-size:2.2rem; }
+    }
   </style>
 </head>
 <body>
-  <button id="toggleBtn">Cambiar color</button>
+  <div class="container">
+    <button id="toggleBtn1" class="btn-big">Cambiar color (id:1)</button>
+    <button id="toggleBtn2" class="btn-big">Cambiar color (id:2)</button>
+  </div>
   <script>
     // Desestructura correctamente
     const { createClient } = window.supabase;
@@ -31,10 +46,10 @@
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmcWV4aHRlaG9tZWxxdGV2cGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1OTA0MzQsImV4cCI6MjA2OTE2NjQzNH0.x7-lBYEOq16DDLF7TOZjuh6g3ZfRrAMc6SqG8MSPmQE'
     );
 
-    const btn = document.getElementById('toggleBtn');
+    const btn1 = document.getElementById('toggleBtn1');
+    const btn2 = document.getElementById('toggleBtn2');
 
     function getContrastColor(color) {
-      // Crea elemento temporal para resolver el color a rgb
       const el = document.createElement('div');
       el.style.color = color;
       el.style.display = 'none';
@@ -44,53 +59,60 @@
       const m = rgb.match(/(\d+),\s*(\d+),\s*(\d+)/);
       if (m) {
         const r = +m[1], g = +m[2], b = +m[3];
-        const luminance = 0.299*r + 0.587*g + 0.114*b; // 0-255
+        const luminance = 0.299*r + 0.587*g + 0.114*b;
         return luminance > 186 ? 'black' : 'white';
       }
       return 'white';
     }
 
-    function applyColorToButton(color) {
-      btn.style.backgroundColor = color;
-      btn.style.color = getContrastColor(color);
-      btn.textContent = `Cambiar color (${color})`;
+    function applyColorToButtonElement(button, color, id) {
+      button.style.backgroundColor = color;
+      button.style.color = getContrastColor(color);
+      button.textContent = `Cambiar color (id:${id}) — ${color}`;
     }
 
-    // Fetch inicial para reflejar el color actual
+    // Fetch inicial para ambos botones (id 1 y 2)
     async function init() {
       const { data, error } = await supabaseClient
         .from('colors')
-        .select('color')
-        .eq('id', 1)
-        .single();
-      if (!error && data) {
-        applyColorToButton(data.color);
+        .select('id, color')
+        .in('id', [1,2]);
+      if (!error && Array.isArray(data)) {
+        data.forEach(row => {
+          if (row.id === 1) applyColorToButtonElement(btn1, row.color, 1);
+          if (row.id === 2) applyColorToButtonElement(btn2, row.color, 2);
+        });
       }
+      // Nota: si no existe id=2 en la tabla, crea una fila en Supabase con id=2 y color='green' (o desde la UI de Supabase).
     }
 
-    btn.addEventListener('click', async () => {
-      // Obtener color actual para decidir el siguiente
+    async function toggleColorForId(id, button) {
       const { data, error } = await supabaseClient
         .from('colors')
         .select('color')
-        .eq('id', 1)
+        .eq('id', id)
         .single();
       if (error || !data) return;
       const newColor = data.color === 'green' ? 'red' : 'green';
       const { error: updErr } = await supabaseClient
         .from('colors')
         .update({ color: newColor })
-        .eq('id', 1);
-      if (!updErr) {
-        applyColorToButton(newColor);
-      }
-    });
+        .eq('id', id);
+      if (!updErr) applyColorToButtonElement(button, newColor, id);
+    }
 
-    // Suscribirse a cambios en realtime para mantener el botón sincronizado
-    supabaseClient
-      .channel('realtime-colors-control')
+    btn1.addEventListener('click', () => toggleColorForId(1, btn1));
+    btn2.addEventListener('click', () => toggleColorForId(2, btn2));
+
+    // Suscribirse a cambios en realtime para ambos ids
+    const channel = supabaseClient.channel('realtime-colors-control');
+
+    channel
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'colors', filter: 'id=eq.1' }, (payload) => {
-        applyColorToButton(payload.new.color);
+        applyColorToButtonElement(btn1, payload.new.color, 1);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'colors', filter: 'id=eq.2' }, (payload) => {
+        applyColorToButtonElement(btn2, payload.new.color, 2);
       })
       .subscribe();
 
