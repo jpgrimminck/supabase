@@ -17,9 +17,16 @@
       box-sizing:border-box;
       justify-content:center;
     }
+    .col {
+      flex:1 1 50%;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:1rem;
+    }
     .btn-big {
-      width:calc(50vw - 4vw);
-      height:90vh;
+      width:calc(50vw - 6vw);
+      height:72vh; /* reducido para dejar espacio a inputs */
       font-size:3rem;
       border:none;
       border-radius:12px;
@@ -27,16 +34,51 @@
       display:block;
       box-shadow:0 6px 18px rgba(0,0,0,0.15);
     }
+    .controls {
+      width:calc(50vw - 6vw);
+      display:flex;
+      gap:0.5rem;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .controls input[type="text"] {
+      flex:1 1 auto;
+      padding:0.5rem 0.75rem;
+      font-size:1.1rem;
+      border-radius:8px;
+      border:1px solid #ccc;
+      box-sizing:border-box;
+    }
+    .controls button.save {
+      padding:0.6rem 0.9rem;
+      font-size:1rem;
+      border-radius:8px;
+      border:none;
+      cursor:pointer;
+    }
     @media (max-width:800px) {
       .container { flex-direction:column; gap:2vh; }
       .btn-big { width:90vw; height:40vh; font-size:2.2rem; }
+      .controls { width:90vw; }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <button id="toggleBtn1" class="btn-big">Cambiar color (id:1)</button>
-    <button id="toggleBtn2" class="btn-big">Cambiar color (id:2)</button>
+    <div class="col">
+      <button id="toggleBtn1" class="btn-big">Cambiar color (id:1)</button>
+      <div class="controls">
+        <input id="inputLabel1" type="text" placeholder="Etiqueta id:1">
+        <button id="saveBtn1" class="save">Guardar</button>
+      </div>
+    </div>
+    <div class="col">
+      <button id="toggleBtn2" class="btn-big">Cambiar color (id:2)</button>
+      <div class="controls">
+        <input id="inputLabel2" type="text" placeholder="Etiqueta id:2">
+        <button id="saveBtn2" class="save">Guardar</button>
+      </div>
+    </div>
   </div>
   <script>
     // Desestructura correctamente
@@ -48,6 +90,10 @@
 
     const btn1 = document.getElementById('toggleBtn1');
     const btn2 = document.getElementById('toggleBtn2');
+    const input1 = document.getElementById('inputLabel1');
+    const input2 = document.getElementById('inputLabel2');
+    const save1 = document.getElementById('saveBtn1');
+    const save2 = document.getElementById('saveBtn2');
 
     function getContrastColor(color) {
       const el = document.createElement('div');
@@ -65,31 +111,40 @@
       return 'white';
     }
 
-    function applyColorToButtonElement(button, color, id) {
+    function applyColorToButtonElement(button, color, id, label) {
       button.style.backgroundColor = color;
       button.style.color = getContrastColor(color);
-      button.textContent = `Cambiar color (id:${id}) — ${color}`;
+      // Mostrar solo el estado: 'completado' si verde, 'pendiente' si rojo
+      let status = '';
+      if (color === 'green') status = 'completado';
+      else if (color === 'red') status = 'pendiente';
+      button.textContent = status;
     }
 
-    // Fetch inicial para ambos botones (id 1 y 2)
+    // Fetch inicial para ambos botones (id 1 y 2) incluyendo label
     async function init() {
       const { data, error } = await supabaseClient
         .from('colors')
-        .select('id, color')
+        .select('id, color, label')
         .in('id', [1,2]);
       if (!error && Array.isArray(data)) {
         data.forEach(row => {
-          if (row.id === 1) applyColorToButtonElement(btn1, row.color, 1);
-          if (row.id === 2) applyColorToButtonElement(btn2, row.color, 2);
+          if (row.id === 1) {
+            applyColorToButtonElement(btn1, row.color, 1, row.label);
+            input1.value = row.label || '';
+          }
+          if (row.id === 2) {
+            applyColorToButtonElement(btn2, row.color, 2, row.label);
+            input2.value = row.label || '';
+          }
         });
       }
-      // Nota: si no existe id=2 en la tabla, crea una fila en Supabase con id=2 y color='green' (o desde la UI de Supabase).
     }
 
     async function toggleColorForId(id, button) {
       const { data, error } = await supabaseClient
         .from('colors')
-        .select('color')
+        .select('color, label')
         .eq('id', id)
         .single();
       if (error || !data) return;
@@ -98,21 +153,47 @@
         .from('colors')
         .update({ color: newColor })
         .eq('id', id);
-      if (!updErr) applyColorToButtonElement(button, newColor, id);
+      if (!updErr) applyColorToButtonElement(button, newColor, id, data.label);
+    }
+
+    async function saveLabelForId(id, newLabel, button, inputElem) {
+      const { error } = await supabaseClient
+        .from('colors')
+        .update({ label: newLabel })
+        .eq('id', id);
+      if (!error) {
+        // aplicar inmediatamente
+        // obtener color actual para actualizar texto del botón
+        const { data } = await supabaseClient
+          .from('colors')
+          .select('color')
+          .eq('id', id)
+          .single();
+        const color = data?.color || 'transparent';
+        applyColorToButtonElement(button, color, id, newLabel);
+      } else {
+        // opcional: manejar error
+        alert('Error guardando etiqueta');
+      }
     }
 
     btn1.addEventListener('click', () => toggleColorForId(1, btn1));
     btn2.addEventListener('click', () => toggleColorForId(2, btn2));
 
-    // Suscribirse a cambios en realtime para ambos ids
+    save1.addEventListener('click', () => saveLabelForId(1, input1.value.trim(), btn1, input1));
+    save2.addEventListener('click', () => saveLabelForId(2, input2.value.trim(), btn2, input2));
+
+    // Suscribirse a cambios en realtime para ambos ids (color y label)
     const channel = supabaseClient.channel('realtime-colors-control');
 
     channel
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'colors', filter: 'id=eq.1' }, (payload) => {
-        applyColorToButtonElement(btn1, payload.new.color, 1);
+        applyColorToButtonElement(btn1, payload.new.color, 1, payload.new.label);
+        input1.value = payload.new.label || '';
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'colors', filter: 'id=eq.2' }, (payload) => {
-        applyColorToButtonElement(btn2, payload.new.color, 2);
+        applyColorToButtonElement(btn2, payload.new.color, 2, payload.new.label);
+        input2.value = payload.new.label || '';
       })
       .subscribe();
 

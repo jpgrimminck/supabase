@@ -16,6 +16,9 @@
       font-size:3rem;
       font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
       transition:background-color 300ms ease, color 300ms ease;
+      text-align:center;
+      padding:2rem;
+      box-sizing:border-box;
     }
     .label {
       background:rgba(0,0,0,0.15);
@@ -27,10 +30,10 @@
 </head>
 <body>
   <div id="leftPanel" class="panel">
-    <div class="label">id:1 — cargando...</div>
+    <div class="label">cargando...</div>
   </div>
   <div id="rightPanel" class="panel">
-    <div class="label">id:2 — cargando...</div>
+    <div class="label">cargando...</div>
   </div>
 
   <script>
@@ -59,36 +62,36 @@
       return 'white';
     }
 
-    function applyColorToPanel(panel, color, id) {
+    function applyLabelToPanel(panel, color, label, id) {
       panel.style.backgroundColor = color;
-      const label = panel.querySelector('.label');
+      const labelEl = panel.querySelector('.label');
       const contrast = getContrastColor(color);
-      label.style.color = contrast;
-      label.textContent = `id:${id} — ${color}`;
+      labelEl.style.color = contrast;
+      labelEl.textContent = label || `(id:${id})`;
     }
 
-    // Fetch inicial para ambos ids
+    // Fetch inicial para ambos ids (traer color y label)
     async function init() {
       const { data, error } = await supabaseClient
         .from('colors')
-        .select('id, color')
+        .select('id, color, label')
         .in('id', [1,2]);
       if (!error && Array.isArray(data)) {
         data.forEach(row => {
-          if (row.id === 1) applyColorToPanel(left, row.color, 1);
-          if (row.id === 2) applyColorToPanel(right, row.color, 2);
+          if (row.id === 1) applyLabelToPanel(left, row.color, row.label, 1);
+          if (row.id === 2) applyLabelToPanel(right, row.color, row.label, 2);
         });
       }
     }
 
-    // Realtime para ambos ids
+    // Realtime para ambos ids (color y label)
     const channel = supabaseClient.channel('realtime-colors-display');
     channel
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'colors', filter: 'id=eq.1' }, (payload) => {
-        applyColorToPanel(left, payload.new.color, 1);
+        applyLabelToPanel(left, payload.new.color, payload.new.label, 1);
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'colors', filter: 'id=eq.2' }, (payload) => {
-        applyColorToPanel(right, payload.new.color, 2);
+        applyLabelToPanel(right, payload.new.color, payload.new.label, 2);
       })
       .subscribe();
 
